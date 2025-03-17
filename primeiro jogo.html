@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple HTML5 Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #87CEEB;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: 
+                linear-gradient(45deg, #5c8d5c 25%, transparent 25%),
+                linear-gradient(-45deg, #5c8d5c 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #5c8d5c 75%),
+                linear-gradient(-45deg, transparent 75%, #5c8d5c 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #5c8d5c;
+        }
+        #gameContainer {
+            display: none;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            margin: 20px auto;
+            max-width: 900px;
+        }
+        canvas {
+            border: 3px solid #8B4513;
+            background: #90EE90;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            margin: 20px auto;
+            display: block;
+        }
+        #score {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        .score-item {
+            background: #f0f0f0;
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 2px solid #8B4513;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #8B4513;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        p {
+            color: #333;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        #playerNameDisplay {
+            font-weight: bold;
+            color: #8B4513;
+        }
+        #menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            border: 3px solid #8B4513;
+        }
+        .menu-button {
+            display: block;
+            width: 200px;
+            padding: 15px;
+            margin: 10px auto;
+            font-size: 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .menu-button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .player-name-input {
+            width: 200px;
+            padding: 10px;
+            margin: 10px auto;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            display: block;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #rankings {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 3px solid #8B4513;
+        }
+        .ranking-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f0f0f0;
+            border-radius: 5px;
+            border: 1px solid #8B4513;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .back-button {
+            background: #f44336;
+            margin-top: 10px;
+        }
+        .back-button:hover {
+            background: #da190b;
+        }
+    </style>
+    <script>
+        // Global game object to store game state and functions
+        const game = {
+            started: false,
+            animationFrameId: null,
+            rankings: JSON.parse(localStorage.getItem('rankings')) || [],
+            playerName: '',
+            canvas: null,
+            ctx: null,
+            coinCountElement: null,
+            pointCountElement: null,
+            timerElement: null,
+            coinSound: null,
+            mario: null,
+            imageLoaded: false,
+            player: null,
+            coins: [],
+            score: 0,
+            coinsCollected: 0,
+            maxCoins: 5,
+            lastCoinSpawn: 0,
+            coinSpawnInterval: 5000,
+            coinSize: 20,
+            gameTime: 60, // 60 segundos
+            timeLeft: 60,
+            gameStartTime: 0,
+            keys: {
+                ArrowLeft: false,
+                ArrowRight: false,
+                ArrowUp: false,
+                ArrowDown: false
+            },
+            obstacles: [],
+            lastObstacleUpdate: 0,
+            obstacleUpdateInterval: 15000 // 15 segundos
+        };
+
+        // Global functions that need to be accessible from HTML
+        function startGame() {
+            const nameInput = document.getElementById('playerName');
+            const playerName = nameInput.value.trim();
+            
+            if (!playerName) {
+                alert('Por favor, insira seu nome antes de começar!');
+                return;
+            }
+            
+            game.playerName = playerName;
+            document.getElementById('playerNameDisplay').textContent = playerName;
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            game.started = true;
+            game.resetGame();
+            game.startGameLoop();
+        }
+
+        function showRankings() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('rankings').style.display = 'block';
+            game.updateRankingsDisplay();
+        }
+
+        function hideRankings() {
+            document.getElementById('rankings').style.display = 'none';
+            document.getElementById('menu').style.display = 'block';
+        }
+
+        // Initialize game when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize game elements
+            game.canvas = document.getElementById('gameCanvas');
+            game.ctx = game.canvas.getContext('2d');
+            game.coinCountElement = document.getElementById('coinCount');
+            game.pointCountElement = document.getElementById('pointCount');
+            game.timerElement = document.getElementById('timer');
+
+            // Create coin sound
+            game.coinSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+            game.coinSound.volume = 0.2;
+
+            // Create Mario sprite
+            game.mario = new Image();
+            game.mario.src = 'mario.png';
+            
+            game.mario.onload = function() {
+                game.imageLoaded = true;
+                console.log("Mario sprite loaded successfully!");
+            };
+            
+            game.mario.onerror = function() {
+                console.log("Failed to load Mario sprite, using red square instead");
+            };
+
+            // Initialize player
+            game.player = {
+                x: 50,
+                y: game.canvas.height - 100,
+                width: 48,
+                height: 64,
+                speed: 0,
+                maxSpeed: 5,
+                acceleration: 0.5,
+                deceleration: 0.3,
+                direction: 'right',
+                velocityX: 0,
+                velocityY: 0
+            };
+
+            // Add event listeners for keyboard input
+            document.addEventListener('keydown', function(e) {
+                if (game.keys.hasOwnProperty(e.key)) {
+                    game.keys[e.key] = true;
+                    // Prevent default scroll behavior for arrow keys
+                    if (e.key.startsWith('Arrow')) {
+                        e.preventDefault();
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', function(e) {
+                if (game.keys.hasOwnProperty(e.key)) {
+                    game.keys[e.key] = false;
+                }
+            });
+
+            // Add game methods to the game object
+            game.updatePlayerMovement = function() {
+                // Horizontal movement
+                if (this.keys.ArrowLeft) {
+                    this.player.velocityX -= this.player.acceleration;
+                    this.player.direction = 'left';
+                } else if (this.keys.ArrowRight) {
+                    this.player.velocityX += this.player.acceleration;
+                    this.player.direction = 'right';
+                } else {
+                    // Apply deceleration when no keys are pressed
+                    if (this.player.velocityX > 0) {
+                        this.player.velocityX = Math.max(0, this.player.velocityX - this.player.deceleration);
+                    } else if (this.player.velocityX < 0) {
+                        this.player.velocityX = Math.min(0, this.player.velocityX + this.player.deceleration);
+                    }
+                }
+
+                // Vertical movement
+                if (this.keys.ArrowUp) {
+                    this.player.velocityY -= this.player.acceleration;
+                } else if (this.keys.ArrowDown) {
+                    this.player.velocityY += this.player.acceleration;
+                } else {
+                    // Apply deceleration when no keys are pressed
+                    if (this.player.velocityY > 0) {
+                        this.player.velocityY = Math.max(0, this.player.velocityY - this.player.deceleration);
+                    } else if (this.player.velocityY < 0) {
+                        this.player.velocityY = Math.min(0, this.player.velocityY + this.player.deceleration);
+                    }
+                }
+
+                // Limit speed
+                this.player.velocityX = Math.max(-this.player.maxSpeed, Math.min(this.player.maxSpeed, this.player.velocityX));
+                this.player.velocityY = Math.max(-this.player.maxSpeed, Math.min(this.player.maxSpeed, this.player.velocityY));
+
+                // Update position with sliding
+                let newX = this.player.x + this.player.velocityX;
+                let newY = this.player.y + this.player.velocityY;
+
+                // Limitar movimento dentro dos limites do canvas
+                newX = Math.max(-this.player.width, Math.min(newX, this.canvas.width));
+                newY = Math.max(-this.player.height, Math.min(newY, this.canvas.height));
+
+                // Create a temporary player object for collision detection
+                let tempPlayer = {
+                    x: newX,
+                    y: newY,
+                    width: this.player.width,
+                    height: this.player.height
+                };
+
+                // Check collision with obstacles
+                let hasCollision = false;
+
+                // Check horizontal movement first
+                tempPlayer.x = newX;
+                tempPlayer.y = this.player.y;
+                for (let obstacle of this.obstacles) {
+                    if (this.checkCollision(tempPlayer, obstacle)) {
+                        hasCollision = true;
+                        // Stop horizontal movement
+                        this.player.velocityX = 0;
+                        // Try to slide vertically
+                        if (this.player.velocityY !== 0) {
+                            newY = this.player.y + this.player.velocityY;
+                            tempPlayer.y = newY;
+                            if (!this.checkCollision(tempPlayer, obstacle)) {
+                                this.player.y = newY;
+                            }
+                        }
+                    }
+                }
+
+                // Check vertical movement
+                tempPlayer.x = this.player.x;
+                tempPlayer.y = newY;
+                for (let obstacle of this.obstacles) {
+                    if (this.checkCollision(tempPlayer, obstacle)) {
+                        hasCollision = true;
+                        // Stop vertical movement
+                        this.player.velocityY = 0;
+                        // Try to slide horizontally
+                        if (this.player.velocityX !== 0) {
+                            newX = this.player.x + this.player.velocityX;
+                            tempPlayer.x = newX;
+                            if (!this.checkCollision(tempPlayer, obstacle)) {
+                                this.player.x = newX;
+                            }
+                        }
+                    }
+                }
+
+                // Update position if no collision
+                if (!hasCollision) {
+                    this.player.x = newX;
+                    this.player.y = newY;
+                }
+            };
+
+            game.createCoin = function() {
+                let coin;
+                let validPosition = false;
+                let attempts = 0;
+                const maxAttempts = 10; // Limitar tentativas para evitar loop infinito
+
+                while (!validPosition && attempts < maxAttempts) {
+                    coin = {
+                        x: Math.random() * (this.canvas.width - this.coinSize),
+                        y: Math.random() * (this.canvas.height - this.coinSize),
+                        width: this.coinSize,
+                        height: this.coinSize
+                    };
+
+                    // Verificar colisão com obstáculos
+                    validPosition = true;
+                    for (let obstacle of this.obstacles) {
+                        if (this.checkCollision(coin, obstacle)) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    attempts++;
+                }
+
+                if (validPosition) {
+                    this.coins.push(coin);
+                } else {
+                    console.log("Não foi possível encontrar uma posição válida para a moeda");
+                }
+            };
+
+            game.checkCollision = function(player, object) {
+                return player.x < object.x + object.width &&
+                       player.x + player.width > object.x &&
+                       player.y < object.y + object.height &&
+                       player.y + player.height > object.y;
+            };
+
+            game.generateObstacles = function() {
+                // Limpar obstáculos existentes
+                this.obstacles = [];
+                
+                // Função auxiliar para verificar se um obstáculo colide com o jogador
+                const checkPlayerCollision = (obstacle) => {
+                    return this.checkCollision(this.player, obstacle);
+                };
+
+                // Função para verificar colisão entre obstáculos
+                const checkObstacleCollision = (newObstacle) => {
+                    return this.obstacles.some(existingObstacle => 
+                        this.checkCollision(newObstacle, existingObstacle)
+                    );
+                };
+
+                // Função para tentar criar um obstáculo válido
+                const createValidObstacle = (x, y, width, height, maxAttempts = 5) => {
+                    let attempts = 0;
+                    while (attempts < maxAttempts) {
+                        const obstacle = {
+                            x: x,
+                            y: y,
+                            width: width,
+                            height: height
+                        };
+                        
+                        // Verificar colisão com o jogador e outros obstáculos
+                        if (!checkPlayerCollision(obstacle) && !checkObstacleCollision(obstacle)) {
+                            return obstacle;
+                        }
+                        
+                        // Ajustar posição se houver colisão
+                        if (Math.random() > 0.5) {
+                            x = Math.random() * (this.canvas.width - width) + 50;
+                        } else {
+                            y = Math.random() * (this.canvas.height - height) + 50;
+                        }
+                        attempts++;
+                    }
+                    return null;
+                };
+                
+                // Criar novos obstáculos
+                // Parede superior
+                const topWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 200) + 50,
+                    50,
+                    200,
+                    20
+                );
+                if (topWall) this.obstacles.push(topWall);
+                
+                // Parede inferior
+                const bottomWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 200) + 50,
+                    this.canvas.height - 70,
+                    200,
+                    20
+                );
+                if (bottomWall) this.obstacles.push(bottomWall);
+                
+                // Paredes verticais
+                const leftWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 100) + 50,
+                    50,
+                    20,
+                    200
+                );
+                if (leftWall) this.obstacles.push(leftWall);
+                
+                const rightWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 100) + 50,
+                    this.canvas.height - 250,
+                    20,
+                    200
+                );
+                if (rightWall) this.obstacles.push(rightWall);
+                
+                // Adicionar alguns obstáculos aleatórios
+                const numRandomObstacles = Math.floor(Math.random() * 3) + 2; // 2-4 obstáculos aleatórios
+                for (let i = 0; i < numRandomObstacles; i++) {
+                    const isVertical = Math.random() > 0.5;
+                    const randomObstacle = createValidObstacle(
+                        Math.random() * (this.canvas.width - (isVertical ? 20 : 100)) + 50,
+                        Math.random() * (this.canvas.height - (isVertical ? 100 : 20)) + 50,
+                        isVertical ? 20 : 100,
+                        isVertical ? 100 : 20
+                    );
+                    if (randomObstacle) this.obstacles.push(randomObstacle);
+                }
+            };
+
+            game.updateObstacles = function(timestamp) {
+                if (timestamp - this.lastObstacleUpdate >= this.obstacleUpdateInterval) {
+                    this.generateObstacles();
+                    this.lastObstacleUpdate = timestamp;
+                }
+            };
+
+            game.gameLoop = function(timestamp) {
+                if (!this.started) return;
+
+                // Update timer
+                const elapsedTime = Math.floor((timestamp - this.gameStartTime) / 1000);
+                this.timeLeft = Math.max(0, this.gameTime - elapsedTime);
+                this.timerElement.textContent = this.timeLeft;
+
+                // Check if time is up
+                if (this.timeLeft <= 0) {
+                    this.gameOver();
+                    return;
+                }
+
+                // Update obstacles layout
+                this.updateObstacles(timestamp);
+
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw obstacles (brick walls)
+                this.ctx.fillStyle = '#8B4513';
+                this.obstacles.forEach(obstacle => {
+                    this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    // Add brick pattern
+                    this.ctx.strokeStyle = '#A0522D';
+                    this.ctx.lineWidth = 2;
+                    for (let x = obstacle.x; x < obstacle.x + obstacle.width; x += 20) {
+                        for (let y = obstacle.y; y < obstacle.y + obstacle.height; y += 10) {
+                            this.ctx.strokeRect(x, y, 20, 10);
+                        }
+                    }
+                });
+
+                // Update player movement
+                this.updatePlayerMovement();
+
+                // Check if it's time to spawn a new coin
+                if (timestamp - this.lastCoinSpawn >= this.coinSpawnInterval && this.coins.length < this.maxCoins) {
+                    this.createCoin();
+                    this.lastCoinSpawn = timestamp;
+                }
+
+                // Draw coins
+                this.ctx.fillStyle = 'gold';
+                this.coins.forEach(coin => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(coin.x + coin.width/2, coin.y + coin.height/2, coin.width/2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.closePath();
+                });
+
+                // Draw player (Mario or red square)
+                if (this.imageLoaded) {
+                    this.ctx.save();
+                    if (this.player.direction === 'left') {
+                        this.ctx.scale(-1, 1);
+                        this.ctx.translate(-this.player.x - this.player.width, this.player.y);
+                    } else {
+                        this.ctx.translate(this.player.x, this.player.y);
+                    }
+                    this.ctx.drawImage(this.mario, 0, 0, this.player.width, this.player.height);
+                    this.ctx.restore();
+                } else {
+                    // Draw red square as fallback
+                    this.ctx.fillStyle = 'red';
+                    this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
+                }
+
+                // Check for coin collection
+                this.coins = this.coins.filter(coin => {
+                    if (this.checkCollision(this.player, coin)) {
+                        this.coinsCollected++;
+                        this.score += 100;
+                        this.coinCountElement.textContent = this.coinsCollected;
+                        this.pointCountElement.textContent = this.score;
+                        
+                        // Play coin sound
+                        this.coinSound.currentTime = 0;
+                        this.coinSound.play().catch(error => {
+                            console.log("Sound play failed:", error);
+                        });
+                        
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Check for game over condition
+                if (this.coinsCollected >= 10) {
+                    this.gameOver();
+                    return;
+                }
+
+                // Continue game loop
+                this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+            };
+
+            game.startGameLoop = function() {
+                if (!this.started) return;
+                this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+            };
+
+            game.resetGame = function() {
+                // Reset game state
+                this.coins = [];
+                this.score = 0;
+                this.coinsCollected = 0;
+                this.lastCoinSpawn = performance.now();
+                this.lastObstacleUpdate = performance.now();
+                this.timeLeft = this.gameTime;
+                this.gameStartTime = performance.now();
+                this.coinCountElement.textContent = '0';
+                this.pointCountElement.textContent = '0';
+                this.timerElement.textContent = this.timeLeft;
+                
+                // Reset player position
+                this.player.x = 50;
+                this.player.y = this.canvas.height - 100;
+                this.player.velocityX = 0;
+                this.player.velocityY = 0;
+
+                // Generate initial obstacles
+                this.generateObstacles();
+            };
+
+            game.updateRankingsDisplay = function() {
+                const rankingsList = document.getElementById('rankingsList');
+                rankingsList.innerHTML = '';
+                
+                // Sort rankings by score (highest first)
+                const sortedRankings = [...this.rankings].sort((a, b) => b.score - a.score);
+                
+                sortedRankings.forEach((rank, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'ranking-item';
+                    div.textContent = `${index + 1}. ${rank.name} - Score: ${rank.score} - Coins: ${rank.coins} - Date: ${new Date(rank.date).toLocaleDateString()}`;
+                    rankingsList.appendChild(div);
+                });
+            };
+
+            game.saveScore = function(score, coins) {
+                this.rankings.push({
+                    name: this.playerName,
+                    score: score,
+                    coins: coins,
+                    date: new Date().toISOString()
+                });
+                
+                // Keep only top 10 scores
+                this.rankings.sort((a, b) => b.score - a.score);
+                this.rankings = this.rankings.slice(0, 10);
+                
+                localStorage.setItem('rankings', JSON.stringify(this.rankings));
+            };
+
+            game.gameOver = function() {
+                this.started = false;
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                }
+                this.saveScore(this.score, this.coinsCollected);
+                let message = this.timeLeft <= 0 ? 
+                    `Tempo esgotado, ${this.playerName}! ⏰\n\nPontuação: ${this.score}\nMoedas Coletadas: ${this.coinsCollected}` :
+                    `Parabéns ${this.playerName}! 🎉\nVocê completou a missão!\n\nPontuação: ${this.score}\nMoedas Coletadas: ${this.coinsCollected}`;
+                alert(message);
+                document.getElementById('gameContainer').style.display = 'none';
+                document.getElementById('menu').style.display = 'block';
+            };
+
+            // Add a console message to verify the game is running
+            console.log("Game initialized successfully! Open browser console (F12) to see this message.");
+        });
+    </script>
+</head>
+<body>
+    <div id="menu">
+        <h1>Mario Coin Collector</h1>
+        <input type="text" id="playerName" class="player-name-input" placeholder="Digite seu nome" maxlength="20">
+        <button class="menu-button" onclick="startGame()">Start Game</button>
+        <button class="menu-button" onclick="showRankings()">Rankings</button>
+    </div>
+
+    <div id="rankings">
+        <h2>Top Scores</h2>
+        <div id="rankingsList"></div>
+        <button class="menu-button back-button" onclick="hideRankings()">Back to Menu</button>
+    </div>
+
+    <div id="gameContainer">
+        <h2>Mario Coin Collector</h2>
+        <div id="score">
+            <div class="score-item">Moedas: <span id="coinCount">0</span></div>
+            <div class="score-item">Pontos: <span id="pointCount">0</span></div>
+            <div class="score-item">Tempo: <span id="timer">60</span>s</div>
+        </div>
+        <p>Bem-vindo(a), <span id="playerNameDisplay"></span>!</p>
+        <p>Colete 10 moedas douradas para vencer!</p>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+    </div>
+</body>
+</html>
