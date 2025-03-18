@@ -177,6 +177,7 @@
             justify-content: center;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             pointer-events: auto;
+            touch-action: none;
         }
         .joystick-knob {
             position: absolute;
@@ -188,6 +189,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             pointer-events: none;
             transition: transform 0.1s;
+            transform-origin: center;
         }
         @media (min-width: 768px) {
             #touchControls {
@@ -352,8 +354,11 @@
                 isDragging = true;
                 const touch = e.touches[0];
                 const rect = joystick.getBoundingClientRect();
-                startX = touch.clientX - rect.left - knob.offsetWidth / 2;
-                startY = touch.clientY - rect.top - knob.offsetHeight / 2;
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                startX = touch.clientX - centerX;
+                startY = touch.clientY - centerY;
                 updateKnobPosition(startX, startY);
             }
 
@@ -362,8 +367,11 @@
                 e.preventDefault();
                 const touch = e.touches[0];
                 const rect = joystick.getBoundingClientRect();
-                currentX = touch.clientX - rect.left - knob.offsetWidth / 2;
-                currentY = touch.clientY - rect.top - knob.offsetHeight / 2;
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                
+                currentX = touch.clientX - centerX;
+                currentY = touch.clientY - centerY;
                 updateKnobPosition(currentX, currentY);
             }
 
@@ -381,17 +389,13 @@
 
             function updateKnobPosition(x, y) {
                 // Calcular a distância do centro
-                const centerX = joystick.offsetWidth / 2;
-                const centerY = joystick.offsetHeight / 2;
-                const deltaX = x - centerX;
-                const deltaY = y - centerY;
-                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const distance = Math.sqrt(x * x + y * y);
 
                 // Limitar a distância
                 if (distance > maxDistance) {
-                    const angle = Math.atan2(deltaY, deltaX);
-                    x = centerX + Math.cos(angle) * maxDistance;
-                    y = centerY + Math.sin(angle) * maxDistance;
+                    const angle = Math.atan2(y, x);
+                    x = Math.cos(angle) * maxDistance;
+                    y = Math.sin(angle) * maxDistance;
                 }
 
                 // Atualizar posição do knob
@@ -399,13 +403,13 @@
 
                 // Calcular direção do movimento
                 const threshold = 20; // Limiar para considerar movimento
-                if (Math.abs(deltaX) > threshold) {
-                    game.keys.ArrowLeft = deltaX < 0;
-                    game.keys.ArrowRight = deltaX > 0;
+                if (Math.abs(x) > threshold) {
+                    game.keys.ArrowLeft = x < 0;
+                    game.keys.ArrowRight = x > 0;
                 }
-                if (Math.abs(deltaY) > threshold) {
-                    game.keys.ArrowUp = deltaY < 0;
-                    game.keys.ArrowDown = deltaY > 0;
+                if (Math.abs(y) > threshold) {
+                    game.keys.ArrowUp = y < 0;
+                    game.keys.ArrowDown = y > 0;
                 }
             }
 
