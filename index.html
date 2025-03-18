@@ -159,51 +159,35 @@
             display: none;
             position: fixed;
             bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100%;
-            max-width: 300px;
+            left: 20px;
+            width: 150px;
             height: 150px;
             z-index: 1000;
             pointer-events: none;
         }
-        .touch-button {
+        .joystick {
             position: absolute;
-            width: 70px;
-            height: 70px;
+            width: 150px;
+            height: 150px;
             background: rgba(255, 255, 255, 0.8);
             border: 3px solid #8B4513;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
-            color: #8B4513;
-            touch-action: manipulation;
-            pointer-events: auto;
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            pointer-events: auto;
         }
-        .touch-button:active {
+        .joystick-knob {
+            position: absolute;
+            width: 60px;
+            height: 60px;
             background: rgba(255, 255, 255, 0.9);
-            transform: scale(0.95);
-        }
-        #leftButton {
-            left: 20px;
-            bottom: 20px;
-        }
-        #rightButton {
-            left: 100px;
-            bottom: 20px;
-        }
-        #upButton {
-            right: 100px;
-            bottom: 20px;
-        }
-        #downButton {
-            right: 20px;
-            bottom: 20px;
+            border: 2px solid #8B4513;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            pointer-events: none;
+            transition: transform 0.1s;
         }
         @media (min-width: 768px) {
             #touchControls {
@@ -356,40 +340,88 @@
             window.addEventListener('resize', resizeCanvas);
 
             // Touch controls
-            const leftButton = document.getElementById('leftButton');
-            const rightButton = document.getElementById('rightButton');
-            const upButton = document.getElementById('upButton');
-            const downButton = document.getElementById('downButton');
+            const joystick = document.querySelector('.joystick');
+            const knob = document.querySelector('.joystick-knob');
+            let isDragging = false;
+            let startX, startY;
+            let currentX, currentY;
+            const maxDistance = 45; // Distância máxima que o knob pode se mover
 
-            function handleTouchStart(e, key) {
+            function handleTouchStart(e) {
                 e.preventDefault();
-                e.stopPropagation();
-                game.keys[key] = true;
+                isDragging = true;
+                const touch = e.touches[0];
+                const rect = joystick.getBoundingClientRect();
+                startX = touch.clientX - rect.left - knob.offsetWidth / 2;
+                startY = touch.clientY - rect.top - knob.offsetHeight / 2;
+                updateKnobPosition(startX, startY);
             }
 
-            function handleTouchEnd(e, key) {
+            function handleTouchMove(e) {
+                if (!isDragging) return;
                 e.preventDefault();
-                e.stopPropagation();
-                game.keys[key] = false;
+                const touch = e.touches[0];
+                const rect = joystick.getBoundingClientRect();
+                currentX = touch.clientX - rect.left - knob.offsetWidth / 2;
+                currentY = touch.clientY - rect.top - knob.offsetHeight / 2;
+                updateKnobPosition(currentX, currentY);
             }
 
-            function handleTouchCancel(e, key) {
+            function handleTouchEnd(e) {
+                if (!isDragging) return;
                 e.preventDefault();
-                e.stopPropagation();
-                game.keys[key] = false;
+                isDragging = false;
+                resetKnobPosition();
+                // Reset movement
+                game.keys.ArrowLeft = false;
+                game.keys.ArrowRight = false;
+                game.keys.ArrowUp = false;
+                game.keys.ArrowDown = false;
             }
 
-            // Adicionar eventos touch para cada botão
-            [leftButton, rightButton, upButton, downButton].forEach((button, index) => {
-                const key = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'][index];
-                button.addEventListener('touchstart', (e) => handleTouchStart(e, key), { passive: false });
-                button.addEventListener('touchend', (e) => handleTouchEnd(e, key), { passive: false });
-                button.addEventListener('touchcancel', (e) => handleTouchCancel(e, key), { passive: false });
-            });
+            function updateKnobPosition(x, y) {
+                // Calcular a distância do centro
+                const centerX = joystick.offsetWidth / 2;
+                const centerY = joystick.offsetHeight / 2;
+                const deltaX = x - centerX;
+                const deltaY = y - centerY;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                // Limitar a distância
+                if (distance > maxDistance) {
+                    const angle = Math.atan2(deltaY, deltaX);
+                    x = centerX + Math.cos(angle) * maxDistance;
+                    y = centerY + Math.sin(angle) * maxDistance;
+                }
+
+                // Atualizar posição do knob
+                knob.style.transform = `translate(${x}px, ${y}px)`;
+
+                // Calcular direção do movimento
+                const threshold = 20; // Limiar para considerar movimento
+                if (Math.abs(deltaX) > threshold) {
+                    game.keys.ArrowLeft = deltaX < 0;
+                    game.keys.ArrowRight = deltaX > 0;
+                }
+                if (Math.abs(deltaY) > threshold) {
+                    game.keys.ArrowUp = deltaY < 0;
+                    game.keys.ArrowDown = deltaY > 0;
+                }
+            }
+
+            function resetKnobPosition() {
+                knob.style.transform = 'translate(0px, 0px)';
+            }
+
+            // Adicionar eventos touch para o joystick
+            joystick.addEventListener('touchstart', handleTouchStart, { passive: false });
+            joystick.addEventListener('touchmove', handleTouchMove, { passive: false });
+            joystick.addEventListener('touchend', handleTouchEnd, { passive: false });
+            joystick.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
             // Prevent default touch behaviors
             document.addEventListener('touchmove', (e) => {
-                if (e.target.closest('.touch-button')) {
+                if (e.target.closest('.joystick')) {
                     e.preventDefault();
                 }
             }, { passive: false });
@@ -934,10 +966,9 @@
         <canvas id="gameCanvas" width="800" height="400"></canvas>
     </div>
     <div id="touchControls">
-        <div id="leftButton" class="touch-button">←</div>
-        <div id="rightButton" class="touch-button">→</div>
-        <div id="upButton" class="touch-button">↑</div>
-        <div id="downButton" class="touch-button">↓</div>
+        <div class="joystick">
+            <div class="joystick-knob"></div>
+        </div>
     </div>
     <!-- Firebase App (the core Firebase SDK) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
