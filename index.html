@@ -269,13 +269,20 @@
         };
 
         // Adicionar listener para o campo de nome
-        document.getElementById('playerName').addEventListener('input', function(e) {
+        document.addEventListener('DOMContentLoaded', function() {
+            const nameInput = document.getElementById('playerName');
             const clearScoresButton = document.getElementById('clearScoresButton');
-            if (e.target.value.trim() === 'clearscores') {
-                clearScoresButton.style.display = 'block';
-            } else {
-                clearScoresButton.style.display = 'none';
-            }
+            
+            // Garantir que o botão está oculto inicialmente
+            clearScoresButton.style.display = 'none';
+            
+            nameInput.addEventListener('input', function(e) {
+                if (e.target.value.trim() === 'clearscores') {
+                    clearScoresButton.style.display = 'block';
+                } else {
+                    clearScoresButton.style.display = 'none';
+                }
+            });
         });
 
         // Global functions that need to be accessible from HTML
