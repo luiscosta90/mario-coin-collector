@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Mario Coin Collector</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
@@ -940,12 +941,12 @@
                     `Parabéns ${this.playerName}! 🎉\nVocê completou a missão!`;
                 
                 popup.innerHTML = `
-                    <h2 style="color: #8B4513; margin-bottom: 15px;">${message}</h2>
+                    <h2 style="color: #8B4513; margin-bottom: 15px; white-space: pre-line;">${message}</h2>
                     <div style="margin: 20px 0; font-size: 18px;">
                         <p style="margin: 10px 0;">Pontuação: ${this.score}</p>
                         <p style="margin: 10px 0;">Moedas Coletadas: ${this.coinsCollected}</p>
                     </div>
-                    <button class="menu-button" onclick="this.parentElement.parentElement.remove(); document.getElementById('gameContainer').style.display = 'none'; document.getElementById('menu').style.display = 'block';">
+                    <button class="menu-button" onclick="this.parentElement.remove(); document.getElementById('gameContainer').style.display = 'none'; document.getElementById('menu').style.display = 'block';">
                         Voltar ao Menu
                     </button>
                 `;
