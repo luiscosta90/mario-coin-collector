@@ -250,9 +250,9 @@
             coins: [],
             score: 0,
             coinsCollected: 0,
-            maxCoins: 5,
+            maxCoins: 8,
             lastCoinSpawn: 0,
-            coinSpawnInterval: 5000,
+            coinSpawnInterval: 3000,
             coinSize: 20,
             gameTime: 60, // 60 segundos
             timeLeft: 60,
@@ -643,7 +643,7 @@
                 let coin;
                 let validPosition = false;
                 let attempts = 0;
-                const maxAttempts = 10; // Limitar tentativas para evitar loop infinito
+                const maxAttempts = 20; // Aumentado para ter mais tentativas de encontrar uma posição válida
 
                 while (!validPosition && attempts < maxAttempts) {
                     coin = {
@@ -653,14 +653,27 @@
                         height: this.coinSize
                     };
 
-                    // Verificar colisão com obstáculos
+                    // Verificar colisão com obstáculos e outras moedas
                     validPosition = true;
+                    
+                    // Verificar colisão com obstáculos
                     for (let obstacle of this.obstacles) {
                         if (this.checkCollision(coin, obstacle)) {
                             validPosition = false;
                             break;
                         }
                     }
+
+                    // Verificar colisão com outras moedas
+                    if (validPosition) {
+                        for (let existingCoin of this.coins) {
+                            if (this.checkCollision(coin, existingCoin)) {
+                                validPosition = false;
+                                break;
+                            }
+                        }
+                    }
+
                     attempts++;
                 }
 
