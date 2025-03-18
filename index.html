@@ -803,15 +803,13 @@
                         
                         // Check if player has collected 10 coins
                         if (this.coinsCollected >= 10) {
-                            // Parar o jogo imediatamente
+                            console.log("10 moedas coletadas! Chamando gameOver...");
                             this.started = false;
                             if (this.animationFrameId) {
                                 cancelAnimationFrame(this.animationFrameId);
                             }
-                            // Chamar gameOver com um pequeno delay para garantir que o som da moeda seja reproduzido
-                            setTimeout(() => {
-                                this.gameOver();
-                            }, 100);
+                            // Chamar gameOver imediatamente
+                            this.gameOver();
                             return false;
                         }
                         
