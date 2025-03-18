@@ -1,12 +1,22 @@
-# Arquivos do sistema
-.DS_Store
-Thumbs.db
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Arquivos de IDE/Editor
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Arquivos de log
 *.log
