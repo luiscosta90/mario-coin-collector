@@ -165,20 +165,29 @@
             max-width: 300px;
             height: 150px;
             z-index: 1000;
+            pointer-events: none;
         }
         .touch-button {
             position: absolute;
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.5);
-            border: 2px solid #8B4513;
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 3px solid #8B4513;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 32px;
             color: #8B4513;
             touch-action: manipulation;
+            pointer-events: auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .touch-button:active {
+            background: rgba(255, 255, 255, 0.9);
+            transform: scale(0.95);
         }
         #leftButton {
             left: 20px;
@@ -212,9 +221,651 @@
             .score-item {
                 font-size: 16px;
             }
+            #gameContainer {
+                padding-bottom: 180px;
+            }
         }
     </style>
-// ... existing code ...
+    <script>
+        // Global game object to store game state and functions
+        const game = {
+            started: false,
+            animationFrameId: null,
+            rankings: JSON.parse(localStorage.getItem('rankings')) || [],
+            playerName: '',
+            canvas: null,
+            ctx: null,
+            coinCountElement: null,
+            pointCountElement: null,
+            timerElement: null,
+            coinSound: null,
+            mario: null,
+            imageLoaded: false,
+            player: null,
+            coins: [],
+            score: 0,
+            coinsCollected: 0,
+            maxCoins: 5,
+            lastCoinSpawn: 0,
+            coinSpawnInterval: 5000,
+            coinSize: 20,
+            gameTime: 60, // 60 segundos
+            timeLeft: 60,
+            gameStartTime: 0,
+            keys: {
+                ArrowLeft: false,
+                ArrowRight: false,
+                ArrowUp: false,
+                ArrowDown: false
+            },
+            obstacles: [],
+            lastObstacleUpdate: 0,
+            obstacleUpdateInterval: 15000 // 15 segundos
+        };
+
+        // Global functions that need to be accessible from HTML
+        function startGame() {
+            const nameInput = document.getElementById('playerName');
+            const playerName = nameInput.value.trim();
+            
+            if (!playerName) {
+                alert('Por favor, insira seu nome antes de começar!');
+                return;
+            }
+            
+            game.playerName = playerName;
+            document.getElementById('playerNameDisplay').textContent = playerName;
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            game.started = true;
+            game.resetGame();
+            game.startGameLoop();
+        }
+
+        function showRankings() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('rankings').style.display = 'block';
+            game.updateRankingsDisplay();
+        }
+
+        function hideRankings() {
+            document.getElementById('rankings').style.display = 'none';
+            document.getElementById('menu').style.display = 'block';
+        }
+
+        // Initialize game when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize game elements
+            game.canvas = document.getElementById('gameCanvas');
+            game.ctx = game.canvas.getContext('2d');
+            game.coinCountElement = document.getElementById('coinCount');
+            game.pointCountElement = document.getElementById('pointCount');
+            game.timerElement = document.getElementById('timer');
+
+            // Ajustar tamanho do canvas para mobile
+            function resizeCanvas() {
+                const maxWidth = window.innerWidth - 20;
+                const maxHeight = window.innerHeight - 200;
+                const scale = Math.min(maxWidth / 800, maxHeight / 400);
+                game.canvas.width = 800 * scale;
+                game.canvas.height = 400 * scale;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Touch controls
+            const leftButton = document.getElementById('leftButton');
+            const rightButton = document.getElementById('rightButton');
+            const upButton = document.getElementById('upButton');
+            const downButton = document.getElementById('downButton');
+
+            function handleTouchStart(e, key) {
+                e.preventDefault();
+                e.stopPropagation();
+                game.keys[key] = true;
+                console.log('Touch start:', key);
+            }
+
+            function handleTouchEnd(e, key) {
+                e.preventDefault();
+                e.stopPropagation();
+                game.keys[key] = false;
+                console.log('Touch end:', key);
+            }
+
+            function handleTouchCancel(e, key) {
+                e.preventDefault();
+                e.stopPropagation();
+                game.keys[key] = false;
+                console.log('Touch cancel:', key);
+            }
+
+            // Adicionar eventos touch para cada botão
+            [leftButton, rightButton, upButton, downButton].forEach((button, index) => {
+                const key = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'][index];
+                button.addEventListener('touchstart', (e) => handleTouchStart(e, key), { passive: false });
+                button.addEventListener('touchend', (e) => handleTouchEnd(e, key), { passive: false });
+                button.addEventListener('touchcancel', (e) => handleTouchCancel(e, key), { passive: false });
+            });
+
+            // Prevent default touch behaviors
+            document.addEventListener('touchmove', (e) => {
+                if (e.target.closest('.touch-button')) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            // Create coin sound
+            game.coinSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+            game.coinSound.volume = 0.2;
+
+            // Create Mario sprite
+            game.mario = new Image();
+            game.mario.src = 'mario.png';
+            
+            game.mario.onload = function() {
+                game.imageLoaded = true;
+                console.log("Mario sprite loaded successfully!");
+            };
+            
+            game.mario.onerror = function() {
+                console.log("Failed to load Mario sprite, using red square instead");
+            };
+
+            // Initialize player
+            game.player = {
+                x: 50,
+                y: game.canvas.height - 100,
+                width: 48,
+                height: 64,
+                speed: 0,
+                maxSpeed: 5,
+                acceleration: 0.5,
+                deceleration: 0.3,
+                direction: 'right',
+                velocityX: 0,
+                velocityY: 0
+            };
+
+            // Add event listeners for keyboard input
+            document.addEventListener('keydown', function(e) {
+                if (game.keys.hasOwnProperty(e.key)) {
+                    game.keys[e.key] = true;
+                    // Prevent default scroll behavior for arrow keys
+                    if (e.key.startsWith('Arrow')) {
+                        e.preventDefault();
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', function(e) {
+                if (game.keys.hasOwnProperty(e.key)) {
+                    game.keys[e.key] = false;
+                }
+            });
+
+            // Add game methods to the game object
+            game.updatePlayerMovement = function() {
+                // Horizontal movement
+                if (this.keys.ArrowLeft) {
+                    this.player.velocityX -= this.player.acceleration;
+                    this.player.direction = 'left';
+                } else if (this.keys.ArrowRight) {
+                    this.player.velocityX += this.player.acceleration;
+                    this.player.direction = 'right';
+                } else {
+                    // Apply deceleration when no keys are pressed
+                    if (this.player.velocityX > 0) {
+                        this.player.velocityX = Math.max(0, this.player.velocityX - this.player.deceleration);
+                    } else if (this.player.velocityX < 0) {
+                        this.player.velocityX = Math.min(0, this.player.velocityX + this.player.deceleration);
+                    }
+                }
+
+                // Vertical movement
+                if (this.keys.ArrowUp) {
+                    this.player.velocityY -= this.player.acceleration;
+                } else if (this.keys.ArrowDown) {
+                    this.player.velocityY += this.player.acceleration;
+                } else {
+                    // Apply deceleration when no keys are pressed
+                    if (this.player.velocityY > 0) {
+                        this.player.velocityY = Math.max(0, this.player.velocityY - this.player.deceleration);
+                    } else if (this.player.velocityY < 0) {
+                        this.player.velocityY = Math.min(0, this.player.velocityY + this.player.deceleration);
+                    }
+                }
+
+                // Limit speed
+                this.player.velocityX = Math.max(-this.player.maxSpeed, Math.min(this.player.maxSpeed, this.player.velocityX));
+                this.player.velocityY = Math.max(-this.player.maxSpeed, Math.min(this.player.maxSpeed, this.player.velocityY));
+
+                // Update position with sliding
+                let newX = this.player.x + this.player.velocityX;
+                let newY = this.player.y + this.player.velocityY;
+
+                // Limitar movimento dentro dos limites do canvas
+                newX = Math.max(-this.player.width, Math.min(newX, this.canvas.width));
+                newY = Math.max(-this.player.height, Math.min(newY, this.canvas.height));
+
+                // Create a temporary player object for collision detection
+                let tempPlayer = {
+                    x: newX,
+                    y: newY,
+                    width: this.player.width,
+                    height: this.player.height
+                };
+
+                // Check collision with obstacles
+                let hasCollision = false;
+
+                // Check horizontal movement first
+                tempPlayer.x = newX;
+                tempPlayer.y = this.player.y;
+                for (let obstacle of this.obstacles) {
+                    if (this.checkCollision(tempPlayer, obstacle)) {
+                        hasCollision = true;
+                        // Stop horizontal movement
+                        this.player.velocityX = 0;
+                        // Try to slide vertically
+                        if (this.player.velocityY !== 0) {
+                            newY = this.player.y + this.player.velocityY;
+                            tempPlayer.y = newY;
+                            if (!this.checkCollision(tempPlayer, obstacle)) {
+                                this.player.y = newY;
+                            }
+                        }
+                    }
+                }
+
+                // Check vertical movement
+                tempPlayer.x = this.player.x;
+                tempPlayer.y = newY;
+                for (let obstacle of this.obstacles) {
+                    if (this.checkCollision(tempPlayer, obstacle)) {
+                        hasCollision = true;
+                        // Stop vertical movement
+                        this.player.velocityY = 0;
+                        // Try to slide horizontally
+                        if (this.player.velocityX !== 0) {
+                            newX = this.player.x + this.player.velocityX;
+                            tempPlayer.x = newX;
+                            if (!this.checkCollision(tempPlayer, obstacle)) {
+                                this.player.x = newX;
+                            }
+                        }
+                    }
+                }
+
+                // Update position if no collision
+                if (!hasCollision) {
+                    this.player.x = newX;
+                    this.player.y = newY;
+                }
+            };
+
+            game.createCoin = function() {
+                let coin;
+                let validPosition = false;
+                let attempts = 0;
+                const maxAttempts = 10; // Limitar tentativas para evitar loop infinito
+
+                while (!validPosition && attempts < maxAttempts) {
+                    coin = {
+                        x: Math.random() * (this.canvas.width - this.coinSize),
+                        y: Math.random() * (this.canvas.height - this.coinSize),
+                        width: this.coinSize,
+                        height: this.coinSize
+                    };
+
+                    // Verificar colisão com obstáculos
+                    validPosition = true;
+                    for (let obstacle of this.obstacles) {
+                        if (this.checkCollision(coin, obstacle)) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    attempts++;
+                }
+
+                if (validPosition) {
+                    this.coins.push(coin);
+                } else {
+                    console.log("Não foi possível encontrar uma posição válida para a moeda");
+                }
+            };
+
+            game.checkCollision = function(player, object) {
+                return player.x < object.x + object.width &&
+                       player.x + player.width > object.x &&
+                       player.y < object.y + object.height &&
+                       player.y + player.height > object.y;
+            };
+
+            game.generateObstacles = function() {
+                // Limpar obstáculos existentes
+                this.obstacles = [];
+                
+                // Função auxiliar para verificar se um obstáculo colide com o jogador
+                const checkPlayerCollision = (obstacle) => {
+                    return this.checkCollision(this.player, obstacle);
+                };
+
+                // Função para verificar colisão entre obstáculos
+                const checkObstacleCollision = (newObstacle) => {
+                    return this.obstacles.some(existingObstacle => 
+                        this.checkCollision(newObstacle, existingObstacle)
+                    );
+                };
+
+                // Função para tentar criar um obstáculo válido
+                const createValidObstacle = (x, y, width, height, maxAttempts = 5) => {
+                    let attempts = 0;
+                    while (attempts < maxAttempts) {
+                        const obstacle = {
+                            x: x,
+                            y: y,
+                            width: width,
+                            height: height
+                        };
+                        
+                        // Verificar colisão com o jogador e outros obstáculos
+                        if (!checkPlayerCollision(obstacle) && !checkObstacleCollision(obstacle)) {
+                            return obstacle;
+                        }
+                        
+                        // Ajustar posição se houver colisão
+                        if (Math.random() > 0.5) {
+                            x = Math.random() * (this.canvas.width - width) + 50;
+                        } else {
+                            y = Math.random() * (this.canvas.height - height) + 50;
+                        }
+                        attempts++;
+                    }
+                    return null;
+                };
+                
+                // Criar novos obstáculos
+                // Parede superior
+                const topWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 200) + 50,
+                    50,
+                    200,
+                    20
+                );
+                if (topWall) this.obstacles.push(topWall);
+                
+                // Parede inferior
+                const bottomWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 200) + 50,
+                    this.canvas.height - 70,
+                    200,
+                    20
+                );
+                if (bottomWall) this.obstacles.push(bottomWall);
+                
+                // Paredes verticais
+                const leftWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 100) + 50,
+                    50,
+                    20,
+                    200
+                );
+                if (leftWall) this.obstacles.push(leftWall);
+                
+                const rightWall = createValidObstacle(
+                    Math.random() * (this.canvas.width - 100) + 50,
+                    this.canvas.height - 250,
+                    20,
+                    200
+                );
+                if (rightWall) this.obstacles.push(rightWall);
+                
+                // Adicionar alguns obstáculos aleatórios
+                const numRandomObstacles = Math.floor(Math.random() * 3) + 2; // 2-4 obstáculos aleatórios
+                for (let i = 0; i < numRandomObstacles; i++) {
+                    const isVertical = Math.random() > 0.5;
+                    const randomObstacle = createValidObstacle(
+                        Math.random() * (this.canvas.width - (isVertical ? 20 : 100)) + 50,
+                        Math.random() * (this.canvas.height - (isVertical ? 100 : 20)) + 50,
+                        isVertical ? 20 : 100,
+                        isVertical ? 100 : 20
+                    );
+                    if (randomObstacle) this.obstacles.push(randomObstacle);
+                }
+            };
+
+            game.updateObstacles = function(timestamp) {
+                if (timestamp - this.lastObstacleUpdate >= this.obstacleUpdateInterval) {
+                    this.generateObstacles();
+                    this.lastObstacleUpdate = timestamp;
+                }
+            };
+
+            game.gameLoop = function(timestamp) {
+                if (!this.started) return;
+
+                // Update timer
+                const elapsedTime = Math.floor((timestamp - this.gameStartTime) / 1000);
+                this.timeLeft = Math.max(0, this.gameTime - elapsedTime);
+                this.timerElement.textContent = this.timeLeft;
+
+                // Check if time is up
+                if (this.timeLeft <= 0) {
+                    this.gameOver();
+                    return;
+                }
+
+                // Update obstacles layout
+                this.updateObstacles(timestamp);
+
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw obstacles (brick walls)
+                this.ctx.fillStyle = '#8B4513';
+                this.obstacles.forEach(obstacle => {
+                    this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    // Add brick pattern
+                    this.ctx.strokeStyle = '#A0522D';
+                    this.ctx.lineWidth = 2;
+                    for (let x = obstacle.x; x < obstacle.x + obstacle.width; x += 20) {
+                        for (let y = obstacle.y; y < obstacle.y + obstacle.height; y += 10) {
+                            this.ctx.strokeRect(x, y, 20, 10);
+                        }
+                    }
+                });
+
+                // Update player movement
+                this.updatePlayerMovement();
+
+                // Check if it's time to spawn a new coin
+                if (timestamp - this.lastCoinSpawn >= this.coinSpawnInterval && this.coins.length < this.maxCoins) {
+                    this.createCoin();
+                    this.lastCoinSpawn = timestamp;
+                }
+
+                // Draw coins
+                this.ctx.fillStyle = 'gold';
+                this.coins.forEach(coin => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(coin.x + coin.width/2, coin.y + coin.height/2, coin.width/2, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.closePath();
+                });
+
+                // Draw player (Mario or red square)
+                if (this.imageLoaded) {
+                    this.ctx.save();
+                    if (this.player.direction === 'left') {
+                        this.ctx.scale(-1, 1);
+                        this.ctx.translate(-this.player.x - this.player.width, this.player.y);
+                    } else {
+                        this.ctx.translate(this.player.x, this.player.y);
+                    }
+                    this.ctx.drawImage(this.mario, 0, 0, this.player.width, this.player.height);
+                    this.ctx.restore();
+                } else {
+                    // Draw red square as fallback
+                    this.ctx.fillStyle = 'red';
+                    this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
+                }
+
+                // Check for coin collection
+                this.coins = this.coins.filter(coin => {
+                    if (this.checkCollision(this.player, coin)) {
+                        this.coinsCollected++;
+                        this.score += 100;
+                        this.coinCountElement.textContent = this.coinsCollected;
+                        this.pointCountElement.textContent = this.score;
+                        
+                        // Play coin sound
+                        this.coinSound.currentTime = 0;
+                        this.coinSound.play().catch(error => {
+                            console.log("Sound play failed:", error);
+                        });
+                        
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Check for game over condition
+                if (this.coinsCollected >= 10) {
+                    this.gameOver();
+                    return;
+                }
+
+                // Continue game loop
+                this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+            };
+
+            game.startGameLoop = function() {
+                if (!this.started) return;
+                this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+            };
+
+            game.resetGame = function() {
+                // Reset game state
+                this.coins = [];
+                this.score = 0;
+                this.coinsCollected = 0;
+                this.lastCoinSpawn = performance.now();
+                this.lastObstacleUpdate = performance.now();
+                this.timeLeft = this.gameTime;
+                this.gameStartTime = performance.now();
+                this.coinCountElement.textContent = '0';
+                this.pointCountElement.textContent = '0';
+                this.timerElement.textContent = this.timeLeft;
+                
+                // Reset player position
+                this.player.x = 50;
+                this.player.y = this.canvas.height - 100;
+                this.player.velocityX = 0;
+                this.player.velocityY = 0;
+
+                // Generate initial obstacles
+                this.generateObstacles();
+            };
+
+            game.updateRankingsDisplay = function() {
+                const rankingsList = document.getElementById('rankingsList');
+                rankingsList.innerHTML = '';
+                
+                console.log('Buscando pontuações do Firebase...');
+                
+                // Buscar pontuações do Firebase
+                const scoresRef = firebase.ref(database, 'scores');
+                firebase.query(scoresRef, firebase.orderByChild('score'), firebase.limitToLast(10))
+                    .then((snapshot) => {
+                        console.log('Dados recebidos do Firebase:', snapshot.val());
+                        const scores = [];
+                        snapshot.forEach((childSnapshot) => {
+                            scores.push(childSnapshot.val());
+                        });
+                        
+                        // Ordenar por pontuação (maior primeiro)
+                        scores.sort((a, b) => b.score - a.score);
+                        
+                        // Exibir pontuações
+                        scores.forEach((score, index) => {
+                            const div = document.createElement('div');
+                            div.className = 'ranking-item';
+                            div.textContent = `${index + 1}. ${score.name} - Score: ${score.score} - Coins: ${score.coins} - Date: ${new Date(score.date).toLocaleDateString()}`;
+                            rankingsList.appendChild(div);
+                        });
+                    })
+                    .catch((error) => {
+                        console.error("Erro ao carregar pontuações:", error);
+                        rankingsList.innerHTML = '<div class="ranking-item">Erro ao carregar pontuações</div>';
+                    });
+            };
+
+            game.saveScore = function(score, coins) {
+                // Salvar no Firebase
+                const scoresRef = firebase.ref(database, 'scores');
+                const newScore = {
+                    name: this.playerName,
+                    score: score,
+                    coins: coins,
+                    date: new Date().toISOString()
+                };
+                
+                console.log('Tentando salvar pontuação:', newScore);
+                
+                firebase.push(scoresRef, newScore)
+                    .then(() => {
+                        console.log('Pontuação salva com sucesso!');
+                    })
+                    .catch((error) => {
+                        console.error('Erro ao salvar pontuação:', error);
+                    });
+            };
+
+            game.gameOver = function() {
+                this.started = false;
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                }
+                this.saveScore(this.score, this.coinsCollected);
+                let message = this.timeLeft <= 0 ? 
+                    `Tempo esgotado, ${this.playerName}! ⏰\n\nPontuação: ${this.score}\nMoedas Coletadas: ${this.coinsCollected}` :
+                    `Parabéns ${this.playerName}! 🎉\nVocê completou a missão!\n\nPontuação: ${this.score}\nMoedas Coletadas: ${this.coinsCollected}`;
+                alert(message);
+                document.getElementById('gameContainer').style.display = 'none';
+                document.getElementById('menu').style.display = 'block';
+            };
+
+            // Add a console message to verify the game is running
+            console.log("Game initialized successfully! Open browser console (F12) to see this message.");
+        });
+    </script>
+</head>
+<body>
+    <div id="menu">
+        <h1>Mario Coin Collector</h1>
+        <input type="text" id="playerName" class="player-name-input" placeholder="Digite seu nome" maxlength="20">
+        <button class="menu-button" onclick="startGame()">Start Game</button>
+        <button class="menu-button" onclick="showRankings()">Rankings</button>
+    </div>
+
+    <div id="rankings">
+        <h2>Top Scores</h2>
+        <div id="rankingsList"></div>
+        <button class="menu-button back-button" onclick="hideRankings()">Back to Menu</button>
+    </div>
+
+    <div id="gameContainer">
+        <h2>Mario Coin Collector</h2>
+        <div id="score">
+            <div class="score-item">Moedas: <span id="coinCount">0</span></div>
+            <div class="score-item">Pontos: <span id="pointCount">0</span></div>
+            <div class="score-item">Tempo: <span id="timer">60</span>s</div>
+        </div>
+        <p>Bem-vindo(a), <span id="playerNameDisplay"></span>!</p>
+        <p>Colete 10 moedas douradas para vencer!</p>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
     </div>
     <div id="touchControls">
         <div id="leftButton" class="touch-button">←</div>
@@ -223,4 +874,42 @@
         <div id="downButton" class="touch-button">↓</div>
     </div>
     <!-- Firebase App (the core Firebase SDK) -->
-// ... existing code ...
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <!-- Firebase Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js"></script>
+
+    <!-- Initialize Firebase -->
+    <script>
+        console.log('Iniciando configuração do Firebase...');
+        const firebaseConfig = {
+            apiKey: "AIzaSyATr3QssfATVaFxx_QGc7J1Y6oaqgVrQWw",
+            authDomain: "mario-coin-collector.firebaseapp.com",
+            databaseURL: "https://mario-coin-collector-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "mario-coin-collector",
+            storageBucket: "mario-coin-collector.firebasestorage.app",
+            messagingSenderId: "712355001145",
+            appId: "1:712355001145:web:d3c3a1e0ab8656e18a6ee8",
+            measurementId: "G-B7ER8ZSNRK"
+        };
+
+        try {
+            // Initialize Firebase
+            const app = firebase.initializeApp(firebaseConfig);
+            const database = firebase.getDatabase(app);
+            console.log('Firebase inicializado com sucesso!');
+            
+            // Teste de conexão
+            const testRef = firebase.ref(database, 'test');
+            firebase.set(testRef, {
+                timestamp: new Date().toISOString()
+            }).then(() => {
+                console.log('Conexão com Firebase estabelecida com sucesso!');
+            }).catch((error) => {
+                console.error('Erro ao conectar com Firebase:', error);
+            });
+        } catch (error) {
+            console.error('Erro ao inicializar Firebase:', error);
+        }
+    </script>
+</body>
+</html>
