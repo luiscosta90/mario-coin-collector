@@ -257,6 +257,11 @@
             gameTime: 60, // 60 segundos
             timeLeft: 60,
             gameStartTime: 0,
+            lastCoinCollectionTime: 0,
+            baseScore: 100,
+            maxMultiplier: 3,
+            currentMultiplier: 1,
+            multiplierDisplay: null,
             keys: {
                 ArrowLeft: false,
                 ArrowRight: false,
@@ -365,6 +370,7 @@
             game.coinCountElement = document.getElementById('coinCount');
             game.pointCountElement = document.getElementById('pointCount');
             game.timerElement = document.getElementById('timer');
+            game.multiplierDisplay = document.getElementById('multiplier');
 
             // Ajustar tamanho do canvas para mobile
             function resizeCanvas() {
@@ -864,9 +870,27 @@
                 this.coins = this.coins.filter(coin => {
                     if (this.checkCollision(this.player, coin)) {
                         this.coinsCollected++;
-                        this.score += 100;
+                        
+                        // Calcular tempo desde a última moeda coletada
+                        const currentTime = performance.now();
+                        const timeSinceLastCoin = currentTime - this.lastCoinCollectionTime;
+                        this.lastCoinCollectionTime = currentTime;
+
+                        // Calcular multiplicador baseado no tempo
+                        if (timeSinceLastCoin < 2000) { // Menos de 2 segundos
+                            this.currentMultiplier = Math.min(this.maxMultiplier, this.currentMultiplier + 0.5);
+                        } else if (timeSinceLastCoin > 4000) { // Mais de 4 segundos
+                            this.currentMultiplier = Math.max(1, this.currentMultiplier - 0.5);
+                        }
+
+                        // Calcular pontuação com multiplicador
+                        const pointsEarned = Math.round(this.baseScore * this.currentMultiplier);
+                        this.score += pointsEarned;
+
+                        // Atualizar displays
                         this.coinCountElement.textContent = this.coinsCollected;
                         this.pointCountElement.textContent = this.score;
+                        this.multiplierDisplay.textContent = this.currentMultiplier.toFixed(1) + 'x';
                         
                         // Play coin sound
                         this.coinSound.currentTime = 0;
@@ -881,7 +905,6 @@
                             if (this.animationFrameId) {
                                 cancelAnimationFrame(this.animationFrameId);
                             }
-                            // Chamar gameOver imediatamente
                             this.gameOver();
                             return false;
                         }
@@ -909,9 +932,12 @@
                 this.lastObstacleUpdate = performance.now();
                 this.timeLeft = this.gameTime;
                 this.gameStartTime = performance.now();
+                this.lastCoinCollectionTime = performance.now();
+                this.currentMultiplier = 1;
                 this.coinCountElement.textContent = '0';
                 this.pointCountElement.textContent = '0';
                 this.timerElement.textContent = this.timeLeft;
+                this.multiplierDisplay.textContent = '1x';
                 
                 // Reset player position
                 this.player.x = 50;
@@ -1053,6 +1079,7 @@
             <div class="score-item">Moedas: <span id="coinCount">0</span></div>
             <div class="score-item">Pontos: <span id="pointCount">0</span></div>
             <div class="score-item">Tempo: <span id="timer">60</span>s</div>
+            <div class="score-item">Multiplicador: <span id="multiplier">1x</span></div>
         </div>
         <p>Bem-vindo(a), <span id="playerNameDisplay"></span>!</p>
         <p>Colete 10 moedas douradas para vencer!</p>
