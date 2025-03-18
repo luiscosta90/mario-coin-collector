@@ -294,6 +294,29 @@
                 alert('Por favor, insira seu nome antes de começar!');
                 return;
             }
+
+            // Verificar se o nome é "clearscores"
+            if (playerName === 'clearscores') {
+                if (confirm('Tem certeza que deseja limpar todas as pontuações?')) {
+                    const scoresRef = firebase.database().ref('scores');
+                    scoresRef.remove()
+                        .then(() => {
+                            console.log('Pontuações limpas com sucesso!');
+                            alert('Todas as pontuações foram limpas!');
+                            // Limpar o campo de nome
+                            nameInput.value = '';
+                            // Atualizar a exibição dos rankings
+                            game.updateRankingsDisplay();
+                            return;
+                        })
+                        .catch((error) => {
+                            console.error('Erro ao limpar pontuações:', error);
+                            alert('Erro ao limpar pontuações. Tente novamente.');
+                            return;
+                        });
+                }
+                return;
+            }
             
             game.playerName = playerName;
             document.getElementById('playerNameDisplay').textContent = playerName;
