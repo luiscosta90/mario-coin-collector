@@ -857,8 +857,8 @@
                 console.log('Buscando pontuações do Firebase...');
                 
                 // Buscar pontuações do Firebase
-                const scoresRef = firebase.ref(database, 'scores');
-                firebase.query(scoresRef, firebase.orderByChild('score'), firebase.limitToLast(10))
+                const scoresRef = firebase.database().ref('scores');
+                scoresRef.orderByChild('score').limitToLast(10).once('value')
                     .then((snapshot) => {
                         console.log('Dados recebidos do Firebase:', snapshot.val());
                         const scores = [];
@@ -885,7 +885,7 @@
 
             game.saveScore = function(score, coins) {
                 // Salvar no Firebase
-                const scoresRef = firebase.ref(database, 'scores');
+                const scoresRef = firebase.database().ref('scores');
                 const newScore = {
                     name: this.playerName,
                     score: score,
@@ -895,7 +895,7 @@
                 
                 console.log('Tentando salvar pontuação:', newScore);
                 
-                firebase.push(scoresRef, newScore)
+                scoresRef.push(newScore)
                     .then(() => {
                         console.log('Pontuação salva com sucesso!');
                     })
@@ -990,9 +990,9 @@
         </div>
     </div>
     <!-- Firebase App (the core Firebase SDK) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <!-- Firebase Database -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <!-- Initialize Firebase -->
     <script>
@@ -1010,13 +1010,13 @@
 
         try {
             // Initialize Firebase
-            const app = firebase.initializeApp(firebaseConfig);
-            const database = firebase.getDatabase(app);
+            firebase.initializeApp(firebaseConfig);
+            const database = firebase.database();
             console.log('Firebase inicializado com sucesso!');
             
             // Teste de conexão
-            const testRef = firebase.ref(database, 'test');
-            firebase.set(testRef, {
+            const testRef = database.ref('test');
+            testRef.set({
                 timestamp: new Date().toISOString()
             }).then(() => {
                 console.log('Conexão com Firebase estabelecida com sucesso!');
