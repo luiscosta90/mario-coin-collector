@@ -217,12 +217,30 @@
             canvas {
                 width: 100%;
                 height: auto;
+                max-height: 60vh;
             }
             .score-item {
                 font-size: 16px;
+                padding: 8px 12px;
             }
             #gameContainer {
                 padding-bottom: 180px;
+                margin: 0;
+                border-radius: 0;
+            }
+            #menu {
+                width: 95%;
+                padding: 15px;
+            }
+            .menu-button {
+                padding: 12px;
+                font-size: 16px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+            p {
+                font-size: 14px;
             }
         }
     </style>
@@ -309,7 +327,31 @@
                 const scale = Math.min(maxWidth / 800, maxHeight / 400);
                 game.canvas.width = 800 * scale;
                 game.canvas.height = 400 * scale;
+                
+                // Ajustar posição do jogador após redimensionamento
+                if (game.player) {
+                    game.player.x = 50 * scale;
+                    game.player.y = (game.canvas.height - 100) * scale;
+                    game.player.width = 48 * scale;
+                    game.player.height = 64 * scale;
+                }
+                
+                // Ajustar controles touch para mobile
+                const touchControls = document.getElementById('touchControls');
+                if (window.innerWidth <= 767) {
+                    touchControls.style.display = 'block';
+                    const buttons = touchControls.getElementsByClassName('touch-button');
+                    for (let button of buttons) {
+                        button.style.width = `${70 * scale}px`;
+                        button.style.height = `${70 * scale}px`;
+                        button.style.fontSize = `${32 * scale}px`;
+                    }
+                } else {
+                    touchControls.style.display = 'none';
+                }
             }
+            
+            // Chamar resizeCanvas inicialmente e quando a janela for redimensionada
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
 
@@ -323,21 +365,18 @@
                 e.preventDefault();
                 e.stopPropagation();
                 game.keys[key] = true;
-                console.log('Touch start:', key);
             }
 
             function handleTouchEnd(e, key) {
                 e.preventDefault();
                 e.stopPropagation();
                 game.keys[key] = false;
-                console.log('Touch end:', key);
             }
 
             function handleTouchCancel(e, key) {
                 e.preventDefault();
                 e.stopPropagation();
                 game.keys[key] = false;
-                console.log('Touch cancel:', key);
             }
 
             // Adicionar eventos touch para cada botão
