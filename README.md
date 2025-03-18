@@ -58,5 +58,16 @@ Este projeto está sob a licença MIT.
 3. Em "Source", selecione a branch "main"
 4. Clique em "Save"
 
-O jogo estará disponível em: `https://[seu-usuario].github.io/mario-coin-collector`
+O jogo estará disponível em: `c:\Users\luise\Documents\Games>git commit -m "Update files for GitHub Pages"
+On branch main
+nothing to commit, working tree clean
+
+c:\Users\luise\Documents\Games>git push
+fatal: The current branch main has no upstream branch.
+To push the current branch and set the remote as upstream, use
+
+    git push --set-upstream origin main
+
+To have this happen automatically for branches without a tracking
+upstream, see 'push.autoSetupRemote' in 'git help config'.https://[seu-usuario].github.io/mario-coin-collector`
 (Substitua [seu-usuario] pelo seu nome de usuário do GitHub. Exemplo: se seu usuário for "luise", o link será https://luise.github.io/mario-coin-collector) 
