@@ -803,7 +803,15 @@
                         
                         // Check if player has collected 10 coins
                         if (this.coinsCollected >= 10) {
-                            this.gameOver();
+                            // Parar o jogo imediatamente
+                            this.started = false;
+                            if (this.animationFrameId) {
+                                cancelAnimationFrame(this.animationFrameId);
+                            }
+                            // Chamar gameOver com um pequeno delay para garantir que o som da moeda seja reproduzido
+                            setTimeout(() => {
+                                this.gameOver();
+                            }, 100);
                             return false;
                         }
                         
@@ -899,14 +907,22 @@
             };
 
             game.gameOver = function() {
+                console.log("Game Over chamado!");
                 this.started = false;
                 if (this.animationFrameId) {
                     cancelAnimationFrame(this.animationFrameId);
                 }
                 this.saveScore(this.score, this.coinsCollected);
                 
+                // Remover qualquer popup existente
+                const existingPopup = document.querySelector('.game-over-popup');
+                if (existingPopup) {
+                    existingPopup.remove();
+                }
+                
                 // Criar e mostrar o popup
                 const popup = document.createElement('div');
+                popup.className = 'game-over-popup';
                 popup.style.position = 'fixed';
                 popup.style.top = '50%';
                 popup.style.left = '50%';
@@ -937,6 +953,7 @@
                 `;
                 
                 document.body.appendChild(popup);
+                console.log("Popup adicionado ao DOM!");
             };
 
             // Add a console message to verify the game is running
