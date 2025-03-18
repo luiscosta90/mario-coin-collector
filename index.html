@@ -801,16 +801,16 @@
                             console.log("Sound play failed:", error);
                         });
                         
+                        // Check if player has collected 10 coins
+                        if (this.coinsCollected >= 10) {
+                            this.gameOver();
+                            return false;
+                        }
+                        
                         return false;
                     }
                     return true;
                 });
-
-                // Check for game over condition
-                if (this.coinsCollected >= 10) {
-                    this.gameOver();
-                    return;
-                }
 
                 // Continue game loop
                 this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
