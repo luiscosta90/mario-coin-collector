@@ -972,7 +972,7 @@
                         scores.forEach((score, index) => {
                             const div = document.createElement('div');
                             div.className = 'ranking-item';
-                            div.textContent = `${index + 1}. ${score.name} - Score: ${score.score} - Coins: ${score.coins} - Date: ${new Date(score.date).toLocaleDateString()}`;
+                            div.textContent = `${index + 1}. ${score.name} - Score: ${score.score} - Coins: ${score.coins} - Multiplicador: ${score.multiplier}x - Data: ${new Date(score.date).toLocaleDateString()}`;
                             rankingsList.appendChild(div);
                         });
                     })
@@ -987,9 +987,10 @@
                 const scoresRef = firebase.database().ref('scores');
                 const newScore = {
                     name: this.playerName,
-                    score: score,
+                    score: Math.round(score), // Garantir que a pontuação é um número inteiro
                     coins: coins,
-                    date: new Date().toISOString()
+                    date: new Date().toISOString(),
+                    multiplier: this.currentMultiplier.toFixed(1) // Adicionar o multiplicador final
                 };
                 
                 console.log('Tentando salvar pontuação:', newScore);
