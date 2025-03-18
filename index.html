@@ -868,12 +868,39 @@
                     cancelAnimationFrame(this.animationFrameId);
                 }
                 this.saveScore(this.score, this.coinsCollected);
-                let message = this.timeLeft <= 0 ? 
-                    `Tempo esgotado, ${this.playerName}! ⏰\n\nPontuação: ${this.score}\nMoedas Coletadas: ${this.coinsCollected}` :
-                    `Parabéns ${this.playerName}! 🎉\nVocê completou a missão!\n\nPontuação: ${this.score}\nMoedas Coletadas: ${this.coinsCollected}`;
-                alert(message);
-                document.getElementById('gameContainer').style.display = 'none';
-                document.getElementById('menu').style.display = 'block';
+                
+                // Criar e mostrar o popup
+                const popup = document.createElement('div');
+                popup.style.position = 'fixed';
+                popup.style.top = '50%';
+                popup.style.left = '50%';
+                popup.style.transform = 'translate(-50%, -50%)';
+                popup.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                popup.style.padding = '20px';
+                popup.style.borderRadius = '15px';
+                popup.style.boxShadow = '0 0 20px rgba(0,0,0,0.2)';
+                popup.style.border = '3px solid #8B4513';
+                popup.style.zIndex = '1000';
+                popup.style.textAlign = 'center';
+                popup.style.maxWidth = '90%';
+                popup.style.width = '400px';
+                
+                const message = this.timeLeft <= 0 ? 
+                    `Tempo esgotado, ${this.playerName}! ⏰` :
+                    `Parabéns ${this.playerName}! 🎉\nVocê completou a missão!`;
+                
+                popup.innerHTML = `
+                    <h2 style="color: #8B4513; margin-bottom: 15px;">${message}</h2>
+                    <div style="margin: 20px 0; font-size: 18px;">
+                        <p style="margin: 10px 0;">Pontuação: ${this.score}</p>
+                        <p style="margin: 10px 0;">Moedas Coletadas: ${this.coinsCollected}</p>
+                    </div>
+                    <button class="menu-button" onclick="this.parentElement.parentElement.remove(); document.getElementById('gameContainer').style.display = 'none'; document.getElementById('menu').style.display = 'block';">
+                        Voltar ao Menu
+                    </button>
+                `;
+                
+                document.body.appendChild(popup);
             };
 
             // Add a console message to verify the game is running
