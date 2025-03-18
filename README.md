@@ -1,31 +1,42 @@
 # Mario Coin Collector
 
-Um jogo simples de coleta de moedas inspirado no Mario Bros, desenvolvido com HTML5 Canvas e JavaScript.
-
-## Características
-
-- Personagem controlável com as setas do teclado
-- Sistema de pontuação e coleta de moedas
-- Obstáculos dinâmicos que mudam a cada 15 segundos
-- Timer de 60 segundos
-- Sistema de ranking com armazenamento local
-- Design responsivo e atraente
-- Efeitos sonoros e visuais
+Um jogo simples onde você controla o Mario para coletar moedas douradas. Colete 10 moedas para vencer!
 
 ## Como Jogar
 
-1. Digite seu nome e clique em "Start Game"
-2. Use as setas do teclado para mover o personagem
-3. Colete 10 moedas douradas antes que o tempo acabe
-4. Evite colidir com as paredes de tijolos
-5. Tente conseguir a maior pontuação possível
+1. Digite seu nome no campo de texto
+2. Clique em "Start Game"
+3. Use as setas do teclado ou controles touch (em dispositivos móveis) para mover o Mario
+4. Colete as moedas douradas
+5. Evite os obstáculos
+6. Colete 10 moedas para vencer!
+
+## Características
+
+- Controles responsivos para desktop e mobile
+- Sistema de pontuação
+- Ranking de melhores pontuações
+- Timer de 60 segundos
+- Obstáculos dinâmicos
+- Efeitos sonoros
 
 ## Tecnologias Utilizadas
 
 - HTML5
 - CSS3
-- JavaScript (Vanilla)
+- JavaScript
 - Canvas API
+- Firebase (para armazenamento de pontuações)
+
+## Como Executar Localmente
+
+1. Clone este repositório
+2. Abra o arquivo `index.html` em seu navegador
+3. Ou use um servidor local como `python -m http.server 8000`
+
+## Contribuições
+
+Sinta-se à vontade para contribuir com melhorias! Abra uma issue ou envie um pull request.
 
 ## Instalação
 

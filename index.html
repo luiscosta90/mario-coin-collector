@@ -298,6 +298,22 @@
             document.getElementById('menu').style.display = 'block';
         }
 
+        function clearHighScores() {
+            if (confirm('Are you sure you want to clear all high scores? This action cannot be undone.')) {
+                const scoresRef = firebase.database().ref('scores');
+                scoresRef.remove()
+                    .then(() => {
+                        console.log('High scores cleared successfully!');
+                        alert('High scores have been cleared!');
+                        game.updateRankingsDisplay(); // Refresh the display
+                    })
+                    .catch((error) => {
+                        console.error('Error clearing high scores:', error);
+                        alert('Error clearing high scores. Please try again.');
+                    });
+            }
+        }
+
         // Initialize game when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize game elements
@@ -972,6 +988,7 @@
         <h2>Top Scores</h2>
         <div id="rankingsList"></div>
         <button class="menu-button back-button" onclick="hideRankings()">Back to Menu</button>
+        <button class="menu-button" style="background: #ff4444;" onclick="clearHighScores()">Clear High Scores</button>
     </div>
 
     <div id="gameContainer">
