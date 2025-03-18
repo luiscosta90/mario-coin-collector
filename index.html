@@ -288,6 +288,7 @@
         // Global functions that need to be accessible from HTML
         function startGame() {
             const nameInput = document.getElementById('playerName');
+            const clearScoresButton = document.getElementById('clearScoresButton');
             const playerName = nameInput.value.trim();
             
             if (!playerName) {
@@ -305,6 +306,8 @@
                             alert('Todas as pontuações foram limpas!');
                             // Limpar o campo de nome
                             nameInput.value = '';
+                            // Esconder o botão de limpar pontuações
+                            clearScoresButton.style.display = 'none';
                             // Atualizar a exibição dos rankings
                             game.updateRankingsDisplay();
                             return;
